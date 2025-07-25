@@ -34,7 +34,7 @@ class Course(models.Model):
 
 class Group(models.Model):
     name = models.CharField(max_length=255)
-    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='groups')
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='groups', null=True, blank=True)
     students = models.ManyToManyField(User, related_name='student_groups')
 
     def __str__(self):

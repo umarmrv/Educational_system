@@ -29,6 +29,8 @@ class UserAdmin(BaseUserAdmin):
 
 class GroupAdmin(admin.ModelAdmin):
     form = GroupAdminForm
+    filter_horizontal = ('students',)
+
 admin.site.register(User, UserAdmin)
 admin.site.register(Course)
 admin.site.register(Group, GroupAdmin)
