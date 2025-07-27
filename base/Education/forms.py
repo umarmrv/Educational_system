@@ -9,4 +9,5 @@ class GroupAdminForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Ограничиваем список студентов только пользователями с role='student'
-        self.fields['students'].queryset = User.objects.filter(role=Role.STUDENT)
+        if 'students' in self.fields:
+            self.fields['students'].queryset = User.objects.filter(role=Role.STUDENT)
