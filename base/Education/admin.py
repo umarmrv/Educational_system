@@ -33,3 +33,7 @@ class GroupAdmin(admin.ModelAdmin):
 admin.site.register(User, UserAdmin)
 admin.site.register(Course)
 admin.site.register(Group, GroupAdmin)
+
+admin.site.site_header ='Learning-center'
+admin.site.site_title ='www.global.com'
+admin.site.index_title ='Welcome to the Learning-center official site'
