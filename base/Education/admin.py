@@ -25,43 +25,9 @@ class UserAdmin(BaseUserAdmin):
     ordering = ('id',)
 
 
-
-
-from django.contrib import admin
-from .models import Group
-from .forms import GroupAdminForm
-
-
 class GroupAdmin(admin.ModelAdmin):
     form = GroupAdminForm
     filter_horizontal = ("students",)
-    list_display = ("name",)
-
-    # Все поля только для чтения
-    def get_readonly_fields(self, request, obj=None):
-        return [field.name for field in self.model._meta.fields] + ["students"]
-
-    # Убрать кнопки сохранения и удаления
-    def change_view(self, request, object_id, form_url='', extra_context=None):
-        extra_context = extra_context or {}
-        if not request.user.has_perm("Education.change_group"):
-            extra_context["show_save"] = False
-            extra_context["show_save_and_continue"] = False
-            extra_context["show_save_and_add_another"] = False
-            extra_context["show_delete"] = False
-        return super().change_view(request, object_id, form_url, extra_context)
-
-    # def has_view_permission(self, request, obj=None):
-    #     return request.user.has_perm("Education.view_group")
-
-    def has_change_permission(self, request, obj=None):
-        return request.user.has_perm("Education.change_group")
-
-    def has_add_permission(self, request):
-        return request.user.has_perm("Education.add_group")
-
-    def has_delete_permission(self, request, obj=None): 
-        return request.user.has_perm("Education.delete_group")
 
 
 admin.site.register(User, UserAdmin)
