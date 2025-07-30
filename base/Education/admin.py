@@ -30,6 +30,19 @@ class UserAdmin(BaseUserAdmin):
 class GroupAdmin(admin.ModelAdmin):
     form = GroupAdminForm
     filter_horizontal = ('students',)
+ 
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        # Агар суперюзер бўлса, ҳамма гуруҳларни кўрсин
+        if request.user.is_superuser:
+            return qs
+        # Агар талабада фақат ўз гуруҳлари кўрсини
+        if request.user.role == 'student':
+            return qs.filter(students=request.user)
+        # Бошқа холларда барчаси (ёки бошқача фильтрлаш мумкин)
+        return qs
+
 
 admin.site.register(User, UserAdmin)
 admin.site.register(Course)
