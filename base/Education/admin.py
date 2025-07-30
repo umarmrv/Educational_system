@@ -29,6 +29,13 @@ class GroupAdmin(admin.ModelAdmin):
     form = GroupAdminForm
     filter_horizontal = ("students",)
 
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        user = request.user
+        if user.is_authenticated and user.role == 'student':
+            return qs.filter(students=user)
+        return qs
+
 
 admin.site.register(User, UserAdmin)
 admin.site.register(Course)
