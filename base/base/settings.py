@@ -31,6 +31,7 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    "jazzmin",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -124,3 +125,32 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 AUTH_USER_MODEL = 'Education.User'
+
+
+
+
+JAZZMIN_SETTINGS = {
+    "site_title": "Millennium EDU",
+    "site_header": "Millennium EDU",
+    "site_brand": "Millennium EDU",
+    "site_logo": None,  # если появится логотип — сюда можно вставить путь: "static/images/logo.png"
+    "welcome_sign": "Добро пожаловать в Millennium EDU",
+    "copyright": "Millennium EDU",
+    "search_model": ["Education.User", "Education.Group", "Education.Course"],
+    "topmenu_links": [
+        {"name": "Главная", "url": "/", "permissions": ["auth.view_user"]},
+        {"model": "Education.User"},
+        {"model": "Education.Group"},
+        {"model": "Education.Course"},
+    ],
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    "icons": {
+        "Education.User": "fas fa-user",
+        "Education.Group": "fas fa-users",
+        "Education.Course": "fas fa-book-open",
+    },
+    "default_icon_parents": "fas fa-chevron-circle-right",
+    "default_icon_children": "fas fa-angle-right",
+}
+
