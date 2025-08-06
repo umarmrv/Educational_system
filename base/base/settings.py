@@ -130,9 +130,9 @@ AUTH_USER_MODEL = 'Education.User'
 
 
 JAZZMIN_SETTINGS = {
-    "site_title": "Millennium EDU",
-    "site_header": "Millennium EDU",
-    "site_brand": "Millennium EDU",
+    "site_title": "EDUCATIONAL SYSTEM",
+    "site_header": "EDUCATIONAL SYSTEM",
+    "site_brand": "EDUCATIONAL SYSTEM",
     "site_logo": None,  # если появится логотип — сюда можно вставить путь: "static/images/logo.png"
     "welcome_sign": "Добро пожаловать в Millennium EDU",
     "copyright": "Millennium EDU",
