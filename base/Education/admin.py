@@ -55,6 +55,22 @@ class UserAdmin(BaseUserAdmin):
     search_fields = ('email', 'full_name', 'username', 'phone')
     ordering = ('id',)
 
+# Setting up admin part 
+
+from django.contrib import admin
+from .models import Lesson, Attendance
+
+@admin.register(Lesson)
+class LessonAdmin(admin.ModelAdmin):
+    list_display = ('topic', 'date', 'teacher', 'group')
+    list_filter = ('date', 'teacher', 'group')
+
+@admin.register(Attendance)
+class AttendanceAdmin(admin.ModelAdmin):
+    list_display = ('student', 'lesson', 'status')
+    list_filter = ('status', 'lesson__date', 'lesson__group')
+
+    
 
 admin.site.register(User, UserAdmin)
 admin.site.register(Course)
@@ -63,3 +79,4 @@ admin.site.register(Group, GroupAdmin)
 admin.site.site_header ='Learning-center'
 admin.site.site_title ='www.global.com'
 admin.site.index_title ='Welcome to the Learning-center official site'
+

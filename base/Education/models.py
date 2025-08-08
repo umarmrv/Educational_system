@@ -40,3 +40,33 @@ class Group(models.Model):
     def __str__(self):
         return self.name
 
+
+
+# Created models for the lessons and Attendance 
+
+class Lesson(models.Model):
+    topic = models.CharField(max_length=255)
+    date = models.DateField()
+    teacher = models.ForeignKey(User, on_delete=models.CASCADE, related_name='lessons')
+    group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name='lessons')
+
+    def __str__(self):
+        return f"{self.topic} - {self.group.name} - {self.date}"
+    
+
+class Attendance(models.Model):
+    STATUS_CHOICES = (
+        ('present', 'Присутствовал'),
+        ('absent', 'Отсутствовал'),
+    )
+
+    student = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'role': 'student'}, related_name='attendances')
+    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='attendances')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES)
+
+    class Meta:
+        unique_together = ('student', 'lesson')
+
+    def __str__(self):
+        return f"{self.student.full_name} - {self.lesson.topic} - {self.status}"
+
