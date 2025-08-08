@@ -130,12 +130,12 @@ AUTH_USER_MODEL = 'Education.User'
 
 
 JAZZMIN_SETTINGS = {
-    "site_title": "EDUCATIONAL SYSTEM",
-    "site_header": "EDUCATIONAL SYSTEM",
-    "site_brand": "EDUCATIONAL SYSTEM",
+    "site_title": "Educational System",
+    "site_header": "Educational System",
+    "site_brand": "Educational System",
     "site_logo": None,  # если появится логотип — сюда можно вставить путь: "static/images/logo.png"
-    "welcome_sign": "Добро пожаловать в Millennium EDU",
-    "copyright": "Millennium EDU",
+    "welcome_sign": "Добро пожаловать в Educational System",
+    "copyright": "Educational System",
     "search_model": ["Education.User", "Education.Group", "Education.Course"],
     "topmenu_links": [
         {"name": "Главная", "url": "/", "permissions": ["auth.view_user"]},

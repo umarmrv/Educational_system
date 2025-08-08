@@ -1,6 +1,6 @@
 from django.contrib import admin
-from .models import User, Course, Group
-from .forms import GroupAdminForm
+from .models import User, Course, Group, Lesson, Attendance
+from .forms import GroupAdminForm, LessonAdminForm, CourseAdminForm
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
 
@@ -57,11 +57,10 @@ class UserAdmin(BaseUserAdmin):
 
 # Setting up admin part 
 
-from django.contrib import admin
-from .models import Lesson, Attendance
 
 @admin.register(Lesson)
 class LessonAdmin(admin.ModelAdmin):
+    form = LessonAdminForm
     list_display = ('topic', 'date', 'teacher', 'group')
     list_filter = ('date', 'teacher', 'group')
 
@@ -70,10 +69,11 @@ class AttendanceAdmin(admin.ModelAdmin):
     list_display = ('student', 'lesson', 'status')
     list_filter = ('status', 'lesson__date', 'lesson__group')
 
-    
+class CourseAdmin(admin.ModelAdmin):
+    form = CourseAdminForm
 
 admin.site.register(User, UserAdmin)
-admin.site.register(Course)
+admin.site.register(Course, CourseAdmin)
 admin.site.register(Group, GroupAdmin)
 
 admin.site.site_header ='Learning-center'
