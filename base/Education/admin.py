@@ -63,19 +63,16 @@ class AttendanceAdminForm(forms.ModelForm):
 @admin.register(Group)
 class GroupAdmin(admin.ModelAdmin):
     form = GroupAdminForm
-    # Если в модели Group есть M2M поле students — оставь. Если у тебя FK у User — удали строку.
     filter_horizontal = ("students",)
-
     list_display = ("id", "display_name", "students_count")
     search_fields = ("id", "title", "name", "description")
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         user = request.user
-        # (Опционально) студент видит только группы, где он состоит (работает при M2M)
-        if user.is_authenticated and getattr(user, "role", None) == "student" and hasattr(self.model, "students"):
-            return qs.filter(students=user)
-        return qs
+        if user.is_superuser:
+            return qs
+        return qs.filter(course__teacher=user)
 
     def display_name(self, obj):
         return getattr(obj, "title", None) or getattr(obj, "name", None) or str(obj)
@@ -100,9 +97,16 @@ class CourseAdmin(admin.ModelAdmin):
     list_display = ("id", "display_title")
     search_fields = ("id", "title", "name", "description")
 
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.is_superuser:
+            return qs
+        return qs.filter(teacher=request.user)
+
     def display_title(self, obj):
         return getattr(obj, "title", None) or getattr(obj, "name", None) or str(obj)
     display_title.short_description = "Курс"
+
 
 
 # ============================
@@ -135,22 +139,27 @@ class AttendanceInline(admin.TabularInline):
 # ===============
 @admin.register(Lesson)
 class LessonAdmin(admin.ModelAdmin):
-    form = LessonAdminForm
-    list_display = ("topic", "date", "teacher", "group")
-    list_filter = ("date", "teacher", "group")
-    search_fields = ("topic", "teacher__full_name", "teacher__username", "group__title", "group__name")
-    autocomplete_fields = ("teacher", "group")
-    inlines = [AttendanceInline]
+    list_display = ('topic', 'date', 'teacher', 'group')
+    search_fields = ['topic']  # 🔧 Мана шуни қўшиш керак!
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         if request.user.is_superuser:
             return qs
-        # Если Lesson.teacher — это FK на User:
         return qs.filter(teacher=request.user)
-        # Если Lesson.teacher -> Teacher -> user:
-        # return qs.filter(teacher__user=request.user)
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "teacher" and not request.user.is_superuser:
+            kwargs["queryset"] = User.objects.filter(id=request.user.id)
+            kwargs["initial"] = request.user.id
+        if db_field.name == "group" and not request.user.is_superuser:
+            kwargs["queryset"] = Group.objects.filter(course__teacher=request.user)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def save_model(self, request, obj, form, change):
+        if not request.user.is_superuser:
+            obj.teacher = request.user
+        obj.save()
 
 # ==================
 # ATTENDANCE ADMIN
