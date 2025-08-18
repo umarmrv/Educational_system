@@ -142,14 +142,25 @@ class LessonAdmin(admin.ModelAdmin):
     autocomplete_fields = ("teacher", "group")
     inlines = [AttendanceInline]
 
-    def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        if request.user.is_superuser:
-            return qs
-        # Если Lesson.teacher — это FK на User:
-        return qs.filter(teacher=request.user)
-        # Если Lesson.teacher -> Teacher -> user:
-        # return qs.filter(teacher__user=request.user)
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        form.request = request
+
+        if request.user.role == 'teacher' and 'teacher' in form.base_fields:
+            form.base_fields['teacher'].widget = forms.HiddenInput()
+            form.base_fields['teacher'].initial = request.user
+
+        return form
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "group" and request.user.role == 'teacher':
+            kwargs["queryset"] = Group.objects.filter(course__teacher=request.user)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def save_model(self, request, obj, form, change):
+        if request.user.role == 'teacher' and not obj.teacher_id:
+            obj.teacher = request.user
+        super().save_model(request, obj, form, change)
 
 
 # ==================
