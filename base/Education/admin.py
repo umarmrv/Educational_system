@@ -142,24 +142,29 @@ class LessonAdmin(admin.ModelAdmin):
     list_display = ('topic', 'date', 'teacher', 'group')
     search_fields = ['topic']  # 🔧 Мана шуни қўшиш керак!
 
-    def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        if request.user.is_superuser:
-            return qs
-        return qs.filter(teacher=request.user)
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        # Передаём request в форму для валидации
+        form.request = request
+
+        # Скрываем поле teacher для учителя
+        if request.user.role == 'teacher' and 'teacher' in form.base_fields:
+            form.base_fields['teacher'].widget = forms.HiddenInput()
+            form.base_fields['teacher'].initial = request.user
+
+        return form
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "teacher" and not request.user.is_superuser:
-            kwargs["queryset"] = User.objects.filter(id=request.user.id)
-            kwargs["initial"] = request.user.id
-        if db_field.name == "group" and not request.user.is_superuser:
+        # Ограничиваем группы учителя
+        if db_field.name == "group" and request.user.role == 'teacher':
             kwargs["queryset"] = Group.objects.filter(course__teacher=request.user)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def save_model(self, request, obj, form, change):
-        if not request.user.is_superuser:
+        # Авто-наставление teacher для учителя
+        if request.user.role == 'teacher' and not obj.teacher_id:
             obj.teacher = request.user
-        obj.save()
+        super().save_model(request, obj, form, change)
 
 # ==================
 # ATTENDANCE ADMIN
