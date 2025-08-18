@@ -47,7 +47,7 @@ class Group(models.Model):
 class Lesson(models.Model):
     topic = models.CharField(max_length=255)
     date = models.DateField()
-    teacher = models.ForeignKey(User, on_delete=models.CASCADE, related_name='lessons')
+    teacher = models.ForeignKey(User, on_delete=models.CASCADE, related_name='lessons', limit_choices_to={'role':Role.TEACHER})
     group = models.ForeignKey(Group, on_delete=models.CASCADE, related_name='lessons')
 
     def __str__(self):
