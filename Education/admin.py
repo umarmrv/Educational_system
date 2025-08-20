@@ -3,7 +3,7 @@ from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import Course, User, Group, Lesson, Attendance
+from .models import User, Course, Group, Lesson, Attendance
 from .forms import GroupAdminForm, LessonAdminForm, CourseAdminForm
 
 
@@ -32,12 +32,12 @@ class UserAdmin(BaseUserAdmin):
 
 
 # ==========================================
-# Форма для Attendance с валидацией
+# VALIDATION: student must belong to lesson's group
 # ==========================================
 class AttendanceAdminForm(forms.ModelForm):
     class Meta:
         model = Attendance
-        fields = '__all__'  # ✅ правильно: строка, а не кортеж
+        fields = "__all__"
 
     def clean(self):
         cleaned = super().clean()
@@ -51,45 +51,6 @@ class AttendanceAdminForm(forms.ModelForm):
         return cleaned
 
 
-# ===========================
-# INLINE для посещаемости
-# ===========================
-class AttendanceInline(admin.TabularInline):
-    model = Attendance
-    extra = 0
-    form = AttendanceAdminForm
-    autocomplete_fields = ("student",)
-
-    def get_formset(self, request, obj=None, **kwargs):
-        self.parent_obj = obj
-        return super().get_formset(request, obj, **kwargs)
-
-    def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "student" and getattr(self, "parent_obj", None):
-            if hasattr(self.parent_obj.group, "students"):
-                kwargs["queryset"] = self.parent_obj.group.students.all()
-        return super().formfield_for_foreignkey(db_field, request, **kwargs)
-
-
-# ===============
-# LESSON ADMIN
-# ===============
-@admin.register(Lesson)
-class LessonAdmin(admin.ModelAdmin):
-    form = LessonAdminForm
-    list_display = ("topic", "date", "teacher", "group")
-    list_filter = ("date", "teacher", "group")
-    search_fields = ("topic", "teacher__full_name", "teacher__username", "group__name", "group__title")
-    autocomplete_fields = ("teacher", "group")
-    inlines = [AttendanceInline]
-
-    def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        if request.user.is_superuser:
-            return qs
-        return qs.filter(teacher=request.user)
-
-
 # =================
 # GROUP ADMIN
 # =================
@@ -99,32 +60,50 @@ class GroupAdmin(admin.ModelAdmin):
     filter_horizontal = ("students",)
     list_display = ("id", "display_name", "students_count")
     search_fields = ("id", "title", "name", "description")
+    readonly_fields = ['show_lessons']
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
         user = request.user
-<<<<<<< HEAD:Education/admin.py
         if user.is_superuser:
             return qs
         return qs.filter(course__teacher=user)
-=======
-        if user.is_authenticated and getattr(user, "role", None) == "student" and hasattr(self.model, "students"):
-            return qs.filter(students=user)
-        return qs
->>>>>>> home_1:base/Education/admin.py
 
     def display_name(self, obj):
         return getattr(obj, "title", None) or getattr(obj, "name", None) or str(obj)
     display_name.short_description = "Группа"
 
     def students_count(self, obj):
-        if hasattr(obj, "students"):
-            try:
-                return obj.students.count()
-            except Exception:
-                return "-"
-        return "-"
+        try:
+            return obj.students.count() if hasattr(obj, "students") else "-"
+        except Exception:
+            return "-"
     students_count.short_description = "Студентов"
+
+    def show_lessons(self, obj):
+        lessons = obj.lessons.order_by('date')
+        if not lessons.exists():
+            return "Нет уроков"
+
+        output = ""
+        for lesson in lessons:
+            attendances = lesson.attendances.select_related('student')
+
+            present_students = [
+                a.student.full_name for a in attendances if a.status == 'present'
+            ]
+            absent_students = [
+                a.student.full_name for a in attendances if a.status == 'absent'
+            ]
+
+            output += f"📅 Дата: {lesson.date.strftime('%d.%m.%Y')}\n"
+            output += f"📘 Тема: {lesson.topic}\n"
+            output += f"✅ Присутствовали: {', '.join(present_students) if present_students else '—'}\n"
+            output += f"❌ Отсутствовали: {', '.join(absent_students) if absent_students else '—'}\n"
+            output += "-" * 40 + "\n"
+
+        return output
+    show_lessons.short_description = "Уроки и посещаемость"
 
 
 # =================
@@ -133,8 +112,8 @@ class GroupAdmin(admin.ModelAdmin):
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
     form = CourseAdminForm
-    list_display = ("id", "display_title", "get_teacher_name")
-    search_fields = ("id", "title", "name", "description", "teacher__full_name")
+    list_display = ("id", "display_title", "get_teacher_name")  # добавили get_teacher_name
+    search_fields = ("id", "title", "name", "description", "teacher__full_name")  # добавлен поиск по teacher
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -146,11 +125,13 @@ class CourseAdmin(admin.ModelAdmin):
         return getattr(obj, "title", None) or getattr(obj, "name", None) or str(obj)
     display_title.short_description = "Курс"
 
-<<<<<<< HEAD:Education/admin.py
+    def get_teacher_name(self, obj):
+        return obj.teacher.full_name if hasattr(obj, 'teacher') and obj.teacher else "-"
+    get_teacher_name.short_description = 'Учитель'
 
 
 # ============================
-# ATTENDANCE INLINE под LESSON
+# ATTENDANCE INLINE for LESSON
 # ============================
 class AttendanceInline(admin.TabularInline):
     model = Attendance
@@ -159,18 +140,13 @@ class AttendanceInline(admin.TabularInline):
     autocomplete_fields = ("student",)
 
     def get_formset(self, request, obj=None, **kwargs):
-        # parent_obj — текущий Lesson (нужен для фильтра студентов)
         self.parent_obj = obj
         return super().get_formset(request, obj, **kwargs)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        # Ограничим список студентов только учениками группы текущего урока
         if db_field.name == "student" and getattr(self, "parent_obj", None):
             if hasattr(self.parent_obj.group, "students"):
                 kwargs["queryset"] = self.parent_obj.group.students.all()
-            # Если у User FK group -> Group, можно так:
-            # else:
-            #     kwargs["queryset"] = User.objects.filter(group=self.parent_obj.group, role="student")
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
@@ -180,19 +156,12 @@ class AttendanceInline(admin.TabularInline):
 @admin.register(Lesson)
 class LessonAdmin(admin.ModelAdmin):
     list_display = ('topic', 'date', 'teacher', 'group')
-    search_fields = ['topic']  # 🔧 Мана шуни қўшиш керак!
+    search_fields = ['topic']
 
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
-        # Передаём request в форму для валидации
         form.request = request
-=======
-    def get_teacher_name(self, obj):
-        return obj.teacher.full_name if hasattr(obj, 'teacher') and obj.teacher else "-"
-    get_teacher_name.short_description = 'Учитель'
->>>>>>> home_1:base/Education/admin.py
 
-        # Скрываем поле teacher для учителя
         if request.user.role == 'teacher' and 'teacher' in form.base_fields:
             form.base_fields['teacher'].widget = forms.HiddenInput()
             form.base_fields['teacher'].initial = request.user
@@ -200,16 +169,15 @@ class LessonAdmin(admin.ModelAdmin):
         return form
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        # Ограничиваем группы учителя
         if db_field.name == "group" and request.user.role == 'teacher':
             kwargs["queryset"] = Group.objects.filter(course__teacher=request.user)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
     def save_model(self, request, obj, form, change):
-        # Авто-наставление teacher для учителя
         if request.user.role == 'teacher' and not obj.teacher_id:
             obj.teacher = request.user
         super().save_model(request, obj, form, change)
+
 
 # ==================
 # ATTENDANCE ADMIN
@@ -218,7 +186,7 @@ class LessonAdmin(admin.ModelAdmin):
 class AttendanceAdmin(admin.ModelAdmin):
     form = AttendanceAdminForm
     list_display = ("student", "lesson", "lesson_date", "lesson_group", "status")
-    list_filter = ("status", "lesson__date", "lesson__group")  # ✅ Исправлено
+    list_filter = ("status", "lesson__date", "lesson__group")
     search_fields = ("student__full_name", "student__username", "student__email", "lesson__topic")
     autocomplete_fields = ("student", "lesson")
 
