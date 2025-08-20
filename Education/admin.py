@@ -66,6 +66,7 @@ class GroupAdmin(admin.ModelAdmin):
     filter_horizontal = ("students",)
     list_display = ("id", "display_name", "students_count")
     search_fields = ("id", "title", "name", "description")
+    readonly_fields = ['show_lessons']
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -87,6 +88,31 @@ class GroupAdmin(admin.ModelAdmin):
         return "-"
     students_count.short_description = "Студентов"
 
+    def show_lessons(self, obj):
+        lessons = obj.lessons.order_by('date')
+        if not lessons.exists():
+            return "Нет уроков"
+
+        output = ""
+        for lesson in lessons:
+            attendances = lesson.attendances.select_related('student')
+
+            present_students = [
+                a.student.full_name for a in attendances if a.status == 'present'
+            ]
+            absent_students = [
+                a.student.full_name for a in attendances if a.status == 'absent'
+            ]
+
+            output += f"📅 Дата: {lesson.date.strftime('%d.%m.%Y')}\n"
+            output += f"📘 Тема: {lesson.topic}\n"
+            output += f"✅ Присутствовали: {', '.join(present_students) if present_students else '—'}\n"
+            output += f"❌ Отсутствовали: {', '.join(absent_students) if absent_students else '—'}\n"
+            output += "-" * 40 + "\n"
+
+        return output
+
+    show_lessons.short_description = "Уроки и посещаемость"
 
 # =================
 # COURSE ADMIN
