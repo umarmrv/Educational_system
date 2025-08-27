@@ -63,6 +63,7 @@ class Attendance(models.Model):
     student = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'role': 'student'}, related_name='attendances')
     lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='attendances')
     status = models.CharField(max_length=10, choices=STATUS_CHOICES)
+    late_text = models.CharField(max_length=100, null=True)
 
     class Meta:
         unique_together = ('student', 'lesson')

@@ -153,10 +153,27 @@ class AttendanceInline(admin.TabularInline):
 # ===============
 # LESSON ADMIN
 # ===============
+
+@admin.action(description="Create attendance for all")
+def create_for_all(modeladmin, request, queryset):
+    sum = 0
+    for lesson in queryset:
+        students = lesson.group.students.all()
+        for student in students:
+            obj, created = Attendance.objects.get_or_create(
+                student=student,
+                lesson=lesson,
+                defaults={'status':'present'}
+            )
+            if created:
+                sum += 1
+                modeladmin.message_user(request, f"Создано {sum} записей Attendance")
+
 @admin.register(Lesson)
 class LessonAdmin(admin.ModelAdmin):
     list_display = ('topic', 'date', 'teacher', 'group')
     search_fields = ['topic']
+    actions = [create_for_all]
 
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
@@ -185,6 +202,7 @@ class LessonAdmin(admin.ModelAdmin):
 @admin.register(Attendance)
 class AttendanceAdmin(admin.ModelAdmin):
     form = AttendanceAdminForm
+    list_editable = ('status',)
     list_display = ("student", "lesson", "lesson_date", "lesson_group", "status")
     list_filter = ("status", "lesson__date", "lesson__group")
     search_fields = ("student__full_name", "student__username", "student__email", "lesson__topic")
