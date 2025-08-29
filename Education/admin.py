@@ -2,6 +2,7 @@ from django import forms
 from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.db import transaction
 
 from .models import User, Course, Group, Lesson, Attendance
 from .forms import GroupAdminForm, LessonAdminForm, CourseAdminForm
@@ -47,7 +48,6 @@ class AttendanceAdminForm(forms.ModelForm):
         if lesson and student:
             if not hasattr(lesson.group, "students") or not lesson.group.students.filter(pk=student.pk).exists():
                 raise ValidationError("Этот ученик не состоит в группе, к которой относится урок.")
-
         return cleaned
 
 
@@ -112,8 +112,8 @@ class GroupAdmin(admin.ModelAdmin):
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
     form = CourseAdminForm
-    list_display = ("id", "display_title", "get_teacher_name")  # добавили get_teacher_name
-    search_fields = ("id", "title", "name", "description", "teacher__full_name")  # добавлен поиск по teacher
+    list_display = ("id", "display_title", "get_teacher_name")
+    search_fields = ("id", "title", "name", "description", "teacher__full_name")
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -150,33 +150,88 @@ class AttendanceInline(admin.TabularInline):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
+# =========================
+# INTERNAL HELPER
+# =========================
+def _ensure_attendance_for_lesson(lesson, *, default_status="present") -> int:
+    """
+    Создаёт Attendance для всех студентов lesson.group, если отсутствуют.
+    Возвращает количество созданных записей.
+    """
+    if not getattr(lesson, "group_id", None) or not hasattr(lesson.group, "students"):
+        return 0
+
+    student_ids = list(
+        lesson.group.students.only("id").values_list("id", flat=True)
+    )
+    if not student_ids:
+        return 0
+
+    existing_ids = set(
+        Attendance.objects.filter(lesson=lesson).values_list("student_id", flat=True)
+    )
+
+    to_create = [
+        Attendance(student_id=sid, lesson=lesson, status=default_status)
+        for sid in student_ids
+        if sid not in existing_ids
+    ]
+    if to_create:
+        Attendance.objects.bulk_create(to_create)
+    return len(to_create)
+
+
 # ===============
 # LESSON ADMIN
 # ===============
+@admin.action(description="Create attendance for all")
+def create_for_all(modeladmin, request, queryset):
+    created_total = 0
+    for lesson in queryset.select_related("group"):
+        created_total += _ensure_attendance_for_lesson(lesson)
+    modeladmin.message_user(request, f"Создано записей Attendance: {created_total}")
+
 @admin.register(Lesson)
 class LessonAdmin(admin.ModelAdmin):
+    form = LessonAdminForm
     list_display = ('topic', 'date', 'teacher', 'group')
     search_fields = ['topic']
+    actions = [create_for_all]
+    # (по желанию) показать инлайн:
+    # inlines = [AttendanceInline]
 
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
         form.request = request
 
-        if request.user.role == 'teacher' and 'teacher' in form.base_fields:
+        if getattr(request.user, "role", None) == 'teacher' and 'teacher' in form.base_fields:
             form.base_fields['teacher'].widget = forms.HiddenInput()
             form.base_fields['teacher'].initial = request.user
 
         return form
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        if db_field.name == "group" and request.user.role == 'teacher':
+        if db_field.name == "group" and getattr(request.user, "role", None) == 'teacher':
             kwargs["queryset"] = Group.objects.filter(course__teacher=request.user)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
+    @transaction.atomic
     def save_model(self, request, obj, form, change):
-        if request.user.role == 'teacher' and not obj.teacher_id:
+        # выставляем teacher для роли teacher
+        if getattr(request.user, "role", None) == 'teacher' and not obj.teacher_id:
             obj.teacher = request.user
+
+        # сначала сохраняем урок, чтобы получить PK
         super().save_model(request, obj, form, change)
+
+        # автосоздание посещаемости:
+        # - при создании урока
+        # - при смене группы у существующего урока
+        group_changed = bool(change and hasattr(form, "changed_data") and "group" in form.changed_data)
+        if not change or group_changed:
+            created = _ensure_attendance_for_lesson(obj)
+            if created:
+                self.message_user(request, f"Посещаемость создана для студентов группы: {created} записей.")
 
 
 # ==================
@@ -185,6 +240,7 @@ class LessonAdmin(admin.ModelAdmin):
 @admin.register(Attendance)
 class AttendanceAdmin(admin.ModelAdmin):
     form = AttendanceAdminForm
+    list_editable = ('status',)
     list_display = ("student", "lesson", "lesson_date", "lesson_group", "status")
     list_filter = ("status", "lesson__date", "lesson__group")
     search_fields = ("student__full_name", "student__username", "student__email", "lesson__topic")
