@@ -241,7 +241,7 @@ class LessonAdmin(admin.ModelAdmin):
 class AttendanceAdmin(admin.ModelAdmin):
     form = AttendanceAdminForm
     list_editable = ('status',)
-    list_display = ("student", "lesson", "lesson_date", "lesson_group", "status")
+    list_display = ("student", "lesson", "lesson_date", "lesson_group", "status","comment")
     list_filter = ("status", "lesson__date", "lesson__group")
     search_fields = ("student__full_name", "student__username", "student__email", "lesson__topic")
     autocomplete_fields = ("student", "lesson")
