@@ -175,6 +175,12 @@ class LessonAdmin(admin.ModelAdmin):
     search_fields = ['topic']
     actions = [create_for_all]
 
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.role == 'teacher':
+            return qs.filter(teacher=request.user)
+        return qs
+
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
         form.request = request
