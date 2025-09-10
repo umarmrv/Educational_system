@@ -64,6 +64,7 @@ class Attendance(models.Model):
     lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name='attendances')
     status = models.CharField(max_length=10, choices=STATUS_CHOICES)
     comment = models.TextField(blank=True, null=True)
+    
     class Meta:
         unique_together = ('student', 'lesson')
 

@@ -64,10 +64,9 @@ class GroupAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        user = request.user
-        if user.is_superuser:
-            return qs
-        return qs.filter(course__teacher=user)
+        if request.user.role == "teacher":
+            return qs.filter(course__teacher=request.user)
+        return qs
 
     def display_name(self, obj):
         return getattr(obj, "title", None) or getattr(obj, "name", None) or str(obj)
@@ -117,9 +116,9 @@ class CourseAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        if request.user.is_superuser:
-            return qs
-        return qs.filter(teacher=request.user)
+        if request.user.role == "teacher":
+            return qs.filter(teacher=request.user)
+        return qs
 
     def display_title(self, obj):
         return getattr(obj, "title", None) or getattr(obj, "name", None) or str(obj)
@@ -200,6 +199,12 @@ class LessonAdmin(admin.ModelAdmin):
     # (по желанию) показать инлайн:
     # inlines = [AttendanceInline]
 
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.role == "teacher":
+            return qs.filter(teacher=request.user)
+        return qs
+
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
         form.request = request
@@ -245,6 +250,12 @@ class AttendanceAdmin(admin.ModelAdmin):
     list_filter = ("status", "lesson__date", "lesson__group")
     search_fields = ("student__full_name", "student__username", "student__email", "lesson__topic")
     autocomplete_fields = ("student", "lesson")
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if request.user.role == "teacher":
+            return qs.filter(lesson__teacher=request.user)
+        return qs
 
     def lesson_date(self, obj):
         return obj.lesson.date
