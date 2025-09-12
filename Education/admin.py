@@ -3,6 +3,7 @@ from django.contrib import admin
 from django.core.exceptions import ValidationError
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.db import transaction
+from django.db.models import Q
 
 from .models import User, Course, Group, Lesson, Attendance
 from .forms import GroupAdminForm, LessonAdminForm, CourseAdminForm
@@ -16,6 +17,20 @@ class UserAdmin(BaseUserAdmin):
     model = User
     list_display = ("id", "username", "full_name", "email", "phone", "role", "is_staff", "is_active", "date_joined")
     list_filter = ("role", "is_staff", "is_active", "date_joined")
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+
+        if request.user.role == "student":
+            groups = Group.objects.filter(students=request.user)
+            student_ids = User.objects.filter(student_groups__in=groups).values_list("id", flat=True)
+            teacher_ids = User.objects.filter(courses__groups__in=groups).values_list("id", flat=True)
+
+            return qs.filter(
+                Q(id=request.user.id) | Q(id__in=student_ids) | Q(id__in=teacher_ids)
+            ).distinct()
+
+        return qs
 
     fieldsets = (
         (None, {"fields": ("username", "password")}),
@@ -64,8 +79,13 @@ class GroupAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
+
         if request.user.role == "teacher":
             return qs.filter(course__teacher=request.user)
+        
+        if request.user.role == "student":
+            return qs.filter(students=request.user)
+
         return qs
 
     def display_name(self, obj):
@@ -201,8 +221,13 @@ class LessonAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
+        
         if request.user.role == "teacher":
             return qs.filter(teacher=request.user)
+        
+        if request.user.role == "student":
+            return qs.filter(group__students=request.user)
+
         return qs
 
     def get_form(self, request, obj=None, **kwargs):
