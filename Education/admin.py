@@ -266,21 +266,47 @@ class LessonAdmin(admin.ModelAdmin):
 
 # ==================
 # ATTENDANCE ADMIN
-# ==================
+# =================
 @admin.register(Attendance)
 class AttendanceAdmin(admin.ModelAdmin):
     form = AttendanceAdminForm
     list_editable = ('status',)
-    list_display = ("student", "lesson", "lesson_date", "lesson_group", "status","comment")
-    list_filter = ("status", "lesson__date", "lesson__group")
-    search_fields = ("student__full_name", "student__username", "student__email", "lesson__topic")
+    list_display = (
+        "student",
+        "lesson",
+        "lesson_date",
+        "lesson_group",
+        "status",
+        "comment",
+    )
+    search_fields = (
+        "student__full_name",
+        "student__username",
+        "student__email",
+        "lesson__topic",
+    )
     autocomplete_fields = ("student", "lesson")
+
+    list_filter = (
+        "status",
+        ("lesson__date", admin.DateFieldListFilter),
+    )
+
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
+
+        if request.user.is_superuser:
+            return qs
+
         if request.user.role == "teacher":
             return qs.filter(lesson__teacher=request.user)
-        return qs
+
+        if request.user.role == "student":
+            return qs.filter(student=request.user)
+
+        return qs.none()
+
 
     def lesson_date(self, obj):
         return obj.lesson.date
@@ -292,15 +318,11 @@ class AttendanceAdmin(admin.ModelAdmin):
     lesson_group.admin_order_field = "lesson__group"
     lesson_group.short_description = "Группа"
 
-    def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        if request.user.is_superuser:
-            return qs
-        return qs.filter(lesson__teacher=request.user)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         if db_field.name == "lesson" and not request.user.is_superuser:
-            kwargs["queryset"] = Lesson.objects.filter(teacher=request.user)
+            if request.user.role == "teacher":
+                kwargs["queryset"] = Lesson.objects.filter(teacher=request.user)
 
         if db_field.name == "student":
             lesson_id = request.GET.get("lesson")
