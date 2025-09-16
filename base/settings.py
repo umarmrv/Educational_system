@@ -131,12 +131,12 @@ AUTH_USER_MODEL = 'Education.User'
 
 
 JAZZMIN_SETTINGS = {
-    "site_title": "Educational System",
-    "site_header": "Educational System",
-    "site_brand": "Educational System",
+    "site_title": "Edora",
+    "site_header": "Edora",
+    "site_brand": "Edora",
     "site_logo": None,  # если появится логотип — сюда можно вставить путь: "static/images/logo.png"
-    "welcome_sign": "Добро пожаловать в Educational System",
-    "copyright": "Educational System",
+    "welcome_sign": "Добро пожаловать в Edora",
+    "copyright": "Edora",
     "search_model": ["Education.User", "Education.Group", "Education.Course"],
     "topmenu_links": [
         {"name": "Главная", "url": "/", "permissions": ["auth.view_user"]},
