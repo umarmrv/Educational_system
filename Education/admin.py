@@ -296,8 +296,8 @@ class AttendanceAdmin(admin.ModelAdmin):
     def get_queryset(self, request):
         qs = super().get_queryset(request)
 
-        if request.user.is_superuser:
-            return qs
+        if request.user.is_superuser or request.user.role == "admin":
+            return qs 
 
         if request.user.role == "teacher":
             return qs.filter(lesson__teacher=request.user)
