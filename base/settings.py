@@ -128,13 +128,25 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'Education.User'
 
 
+import os
+from pathlib import Path
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+STATIC_URL = '/static/'
+
+STATICFILES_DIRS = [
+    BASE_DIR / "static",
+]
+
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 JAZZMIN_SETTINGS = {
     "site_title": "Edora",
     "site_header": "Edora",
     "site_brand": "Edora",
-    "site_logo": None,  # если появится логотип — сюда можно вставить путь: "static/images/logo.png"
+    "site_logo": "images/new_logo.png",
+
     "welcome_sign": "Добро пожаловать в Edora",
     "copyright": "Edora",
     "search_model": ["Education.User", "Education.Group", "Education.Course"],
