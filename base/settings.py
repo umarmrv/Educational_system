@@ -38,7 +38,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'Education.apps.EducationConfig'
+    'Education.apps.EducationConfig',
+     #for the api and swagger
+     "rest_framework",
+    "django_filters",
+    "drf_spectacular"
 ]
 
 MIDDLEWARE = [
@@ -167,3 +171,26 @@ JAZZMIN_SETTINGS = {
     "default_icon_children": "fas fa-angle-right",
 }
 
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+    "DEFAULT_PERMISSION_CLASSES": (
+        "rest_framework.permissions.IsAuthenticated",
+    ),
+    "DEFAULT_FILTER_BACKENDS": (
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
+        "rest_framework.filters.OrderingFilter",
+    ),
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 20,
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Learning Center API",
+    "DESCRIPTION": "CRUD API for Users, Courses, Groups, Lessons, Attendance",
+    "VERSION": "1.0.0",
+}
