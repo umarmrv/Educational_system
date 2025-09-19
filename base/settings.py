@@ -189,7 +189,7 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 20,
 }
 
-SPECTACULAR_SETTINGS = {
+SPECTACULAR_SETTINGS = {    
     "TITLE": "Learning Center API",
     "DESCRIPTION": "CRUD API for Users, Courses, Groups, Lessons, Attendance",
     "VERSION": "1.0.0",
