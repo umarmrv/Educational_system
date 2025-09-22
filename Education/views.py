@@ -52,3 +52,12 @@ class UserViewSet(viewsets.ModelViewSet):
         if not (u.is_superuser or u.is_staff or getattr(u, "role", None) == "admin"):
             raise PermissionDenied("Только администратор может удалять пользователей.")
         instance.delete()
+from rest_framework import viewsets
+from Education.models import Group
+from .serializers import GroupSerializer
+from rest_framework.permissions import IsAuthenticated  # ихтиёрий
+
+class GroupViewSet(viewsets.ModelViewSet):
+    queryset = Group.objects.all()
+    serializer_class = GroupSerializer
+    permission_classes = [IsAuthenticated]  # агар фақат логин қилинганлар кўра олиши керак бўлса
