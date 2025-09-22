@@ -39,3 +39,17 @@ class UserSerializer(serializers.ModelSerializer):
             instance.set_password(pwd)
         instance.save()
         return instance
+from rest_framework import serializers
+from Education.models import Group, Course  # Course ва Group моделларини импорт қилинг
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+class GroupSerializer(serializers.ModelSerializer):
+    # Агар сиз курс ва талабаларни детал билан кўрсатмоқчи бўлсангиз, шундай қўшинг:
+    course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all(), required=False, allow_null=True)
+    students = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), many=True, required=False)
+
+    class Meta:
+        model = Group
+        fields = ['id', 'name', 'course', 'students']

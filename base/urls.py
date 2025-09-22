@@ -3,11 +3,14 @@ from django.urls import path, include
 from django.views.generic import RedirectView
 from rest_framework.routers import DefaultRouter
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
-from Education.views import UserViewSet 
+from Education.views import UserViewSet,GroupViewSet 
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework.routers import DefaultRouter
+# from .views import GroupViewSet
 
 router = DefaultRouter()
 router.register("users", UserViewSet, basename="user")
+router.register(r'groups', GroupViewSet, basename='group')
 
 
 urlpatterns = [
