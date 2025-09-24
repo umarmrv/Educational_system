@@ -53,3 +53,19 @@ class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = ['id', 'name', 'course', 'students']
+
+
+
+
+from rest_framework import serializers
+from Education.models import Course  # ёки қаерда бўлса
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+class CourseSerializer(serializers.ModelSerializer):
+    teacher = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+
+    class Meta:
+        model = Course
+        fields = ['id', 'title', 'description', 'teacher']
