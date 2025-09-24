@@ -61,3 +61,27 @@ class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
     permission_classes = [IsAuthenticated]  # ёки AllowAny, агар барчага очиқ бўлса
+
+
+from rest_framework import viewsets, permissions
+from .models import Attendance
+from .serializers import AttendanceSerializer
+
+class AttendanceViewSet(viewsets.ModelViewSet):
+    serializer_class = AttendanceSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = Attendance.objects.all()
+
+        if user.is_superuser or user.role == "admin":
+            return qs 
+
+        if user.role == "teacher":
+            return qs.filter(lesson__teacher=user)
+
+        if user.role == "student":
+            return qs.filter(student=user)
+
+        return qs.none()
