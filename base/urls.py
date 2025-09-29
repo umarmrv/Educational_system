@@ -3,16 +3,16 @@ from django.urls import path, include
 from django.views.generic import RedirectView
 from rest_framework.routers import DefaultRouter
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
-from Education.views import UserViewSet,GroupViewSet,CourseViewSet,AttendanceViewSet
+from Education.views import UserViewSet,GroupViewSet,CourseViewSet,AttendanceViewSet,LessonViewSet
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework.routers import DefaultRouter
-# from .views import GroupViewSet
 
 router = DefaultRouter()
 router.register("users", UserViewSet, basename="user")
 router.register(r'groups', GroupViewSet, basename='group')
 router.register(r'courses', CourseViewSet, basename='course')
 router.register(r'attendances', AttendanceViewSet, basename='attendance')
+router.register(r'lessons', LessonViewSet,basename="lesson")
 urlpatterns = [
 
       # Документация (по желанию, но полезно)

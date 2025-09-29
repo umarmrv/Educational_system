@@ -83,3 +83,26 @@ class AttendanceSerializer(serializers.ModelSerializer):
             'status',
             'comment',
         ]
+
+
+# serializers.py
+from rest_framework import serializers
+from .models import Lesson, Attendance, Group, User
+
+class LessonSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Lesson
+        fields = '__all__'
+
+    def create(self, validated_data):
+        lesson = super().create(validated_data)
+
+        # Автоматик attendance яратиш
+        students = lesson.group.students.all()
+        created_attendances = [
+            Attendance(student=student, lesson=lesson, status='absent')
+            for student in students
+        ]
+        Attendance.objects.bulk_create(created_attendances)
+
+        return lesson

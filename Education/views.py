@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from Education.models import Group,Course,Lesson,Attendance
+from Education.models import Group,Course,Lesson,Attendance,Role
 from django.contrib.auth import get_user_model
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated, BasePermission
@@ -52,11 +52,56 @@ class UserViewSet(viewsets.ModelViewSet):
         if not (u.is_superuser or u.is_staff or getattr(u, "role", None) == "admin"):
             raise PermissionDenied("Только администратор может удалять пользователей.")
         instance.delete()
+from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import ValidationError
+from .models import Group
+from .serializers import GroupSerializer
+
+from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import ValidationError
+from .models import Group
+from .serializers import GroupSerializer
 
 class GroupViewSet(viewsets.ModelViewSet):
-    queryset = Group.objects.all()
     serializer_class = GroupSerializer
-    permission_classes = [IsAuthenticated]  # агар фақат логин қилинганлар кўра олиши керак бўлса
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+    
+        if user.role == Role.ADMIN:
+            return Group.objects.all()
+        elif user.role == Role.TEACHER:
+            # Ўқитувчига тегишли курслардаги гуруҳларни олиш
+            return Group.objects.filter(course__teacher=user)
+        else:
+            # Талабалар учун ўз гуруҳлари
+            return Group.objects.filter(students=user)
+
+    def perform_create(self, serializer):
+        students = serializer.validated_data.get('students') or []
+
+        invalid_users = [user.username for user in students if user.role in ['teacher', 'admin']]
+        if invalid_users:
+            raise ValidationError(
+                f"Следующие пользователи не являются студентами и не могут быть добавлены в группу: {', '.join(invalid_users)}"
+            )
+
+        serializer.save()
+
+    def perform_update(self, serializer):
+        students = serializer.validated_data.get('students') or []
+
+        invalid_users = [user.username for user in students if user.role in ['teacher', 'admin']]
+        if invalid_users:
+            raise ValidationError(
+                f"Следующие пользователи не являются студентами и не могут быть добавлены в группу: {', '.join(invalid_users)}"
+            )
+
+        serializer.save()
+
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
@@ -85,3 +130,39 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             return qs.filter(student=user)
 
         return qs.none()
+
+
+# views.py
+from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
+from .models import Lesson
+from .serializers import LessonSerializer
+
+class LessonViewSet(viewsets.ModelViewSet):
+    queryset = Lesson.objects.all()
+    serializer_class = LessonSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+
+        if user.role == 'teacher':
+            return Lesson.objects.filter(teacher=user)
+
+        elif user.role == 'student':
+            return Lesson.objects.filter(group__students=user)
+
+        return Lesson.objects.all()
+
+    # def perform_create(self, serializer):
+    def perform_create(self, serializer):
+        user = self.request.user
+
+        if user.role not in ['teacher', 'admin']:
+            raise PermissionDenied("Сизда дарс яратиш ҳуқуқи йўқ!")
+
+
+        if user.role == 'teacher':
+            serializer.save(teacher=user)
+        else:
+            serializer.save()
