@@ -1,5 +1,5 @@
 from django.shortcuts import render
-from Education.models import Group,Course,Lesson,Attendance,Role
+from Education.models import Group,Course,Lesson,Attendance,Role,User
 from django.contrib.auth import get_user_model
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated, BasePermission
@@ -27,13 +27,30 @@ class UserViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     queryset = User.objects.all().order_by("id")
 
-    def get_queryset(self):
-        u = self.request.user
-        if u.is_superuser or u.is_staff or getattr(u, "role", None) == "admin":
-            return super().get_queryset()
-        # не admin — только себя
-        return User.objects.filter(pk=u.pk)
 
+    def get_queryset(self):
+        user = self.request.user
+    
+        if user.role == Role.ADMIN:
+            # Админ видит всех пользователей
+            return User.objects.all()
+    
+        elif user.role == Role.TEACHER:
+            # Учитель видит студентов своих групп (через связь групп и курсов)
+            return User.objects.filter(
+                role=Role.STUDENT,
+                student_groups__course__teacher=user
+            ).distinct()
+    
+        elif user.role == Role.STUDENT:
+            # Ученик видит только одногруппников (включая себя)
+            return User.objects.filter(
+                student_groups__in=user.student_groups.all()
+            ).distinct()
+
+        # Если роль не распознана — пустой queryset
+        return User.objects.none()
+    
     def get_permissions(self):
         # На запись (create/update/destroy) пускаем только админов.
         if self.action in ["create", "update", "partial_update", "destroy"]:
