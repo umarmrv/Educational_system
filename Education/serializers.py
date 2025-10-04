@@ -63,15 +63,32 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
+from rest_framework import serializers
+from Education.models import Course, User
+
 class CourseSerializer(serializers.ModelSerializer):
-    teacher = serializers.SlugRelatedField(
-        slug_field='full_name',
-        queryset=User.objects.all()
+    # Поле для приема teacher как ID (по умолчанию)
+    teacher = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.filter(role='teacher'),  # Только пользователи с ролью teacher
+        required=False,
+        write_only=True  # При отправке данных, но не в ответе
     )
+    # Поле для отображения имени учителя в ответе
+    teacher_name = serializers.CharField(source='teacher.username', read_only=True)
 
     class Meta:
         model = Course
-        fields = ['id', 'title', 'description', 'teacher']
+        fields = ['title', 'description', 'teacher', 'teacher_name']
+
+    def to_internal_value(self, data):
+        # Если в поле teacher передано имя (строка), а не ID, пытаемся найти учителя по имени
+        if isinstance(data.get('teacher'), str):
+            try:
+                user = User.objects.get(username=data['teacher'], role='teacher')
+                data['teacher'] = user.id  # Заменяем имя на ID
+            except User.DoesNotExist:
+                raise serializers.ValidationError({'teacher': 'Учитель с таким именем не найден'})
+        return super().to_internal_value(data)
 
 from rest_framework import serializers
 from .models import Attendance
