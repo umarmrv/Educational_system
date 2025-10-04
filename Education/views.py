@@ -1,181 +1,138 @@
 from django.shortcuts import render
-from Education.models import Group,Course,Lesson,Attendance,Role,User
+from Education.models import Group, Course, Lesson, Attendance, Role, User
 from django.contrib.auth import get_user_model
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated, BasePermission
-from rest_framework.exceptions import PermissionDenied
-
-from .serializers import UserSerializer,CourseSerializer,GroupSerializer
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from .serializers import UserSerializer, CourseSerializer, GroupSerializer, LessonSerializer, AttendanceSerializer
 
 User = get_user_model()
 
+# -----------------------
+# Пермишены
+# -----------------------
 class IsAdminUserRole(BasePermission):
-    """
-    Даёт доступ, если пользователь суперюзер, staff или role=admin.
-    """
+    """Доступ только для админов (role=admin, staff или superuser)."""
     def has_permission(self, request, view):
         u = request.user
-        return bool(u and (u.is_superuser or u.is_staff or getattr(u, "role", None) == "admin"))
+        return bool(
+            u and (u.is_superuser or u.is_staff or getattr(u, "role", None) == Role.ADMIN)
+        )
 
+# -----------------------
+# Пользователи
+# -----------------------
 class UserViewSet(viewsets.ModelViewSet):
-    """
-    CRUD по пользователям.
-    - Admin: полный доступ.
-    - Обычный пользователь: может смотреть только себя; менять/создавать/удалять — нельзя.
-    """
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
     queryset = User.objects.all().order_by("id")
 
-
     def get_queryset(self):
         user = self.request.user
-    
+
         if user.role == Role.ADMIN:
-            # Админ видит всех пользователей
             return User.objects.all()
-    
+
         elif user.role == Role.TEACHER:
-            # Учитель видит студентов своих групп (через связь групп и курсов)
             return User.objects.filter(
                 role=Role.STUDENT,
                 student_groups__course__teacher=user
             ).distinct()
-    
+
         elif user.role == Role.STUDENT:
-            # Ученик видит только одногруппников (включая себя)
             return User.objects.filter(
                 student_groups__in=user.student_groups.all()
             ).distinct()
 
-        # Если роль не распознана — пустой queryset
         return User.objects.none()
-    
+
     def get_permissions(self):
-        # На запись (create/update/destroy) пускаем только админов.
         if self.action in ["create", "update", "partial_update", "destroy"]:
             return [IsAuthenticated(), IsAdminUserRole()]
         return [IsAuthenticated()]
 
-    # Дополнительно защитим non-admin от изменения И своего профиля тоже (по ТЗ)
     def perform_update(self, serializer):
         u = self.request.user
-        if not (u.is_superuser or u.is_staff or getattr(u, "role", None) == "admin"):
+        if not (u.is_superuser or u.is_staff or getattr(u, "role", None) == Role.ADMIN):
             raise PermissionDenied("Только администратор может изменять пользователей.")
         serializer.save()
 
     def perform_destroy(self, instance):
         u = self.request.user
-        if not (u.is_superuser or u.is_staff or getattr(u, "role", None) == "admin"):
+        if not (u.is_superuser or u.is_staff or getattr(u, "role", None) == Role.ADMIN):
             raise PermissionDenied("Только администратор может удалять пользователей.")
         instance.delete()
 
-from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import ValidationError
-from .models import Group
-from .serializers import GroupSerializer
-
-from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import ValidationError
-from .models import Group
-from .serializers import GroupSerializer
-from .permissions import GroupPermission
-
+# -----------------------
+# Группы
+# -----------------------
 class GroupViewSet(viewsets.ModelViewSet):
     serializer_class = GroupSerializer
-    permission_classes = [GroupPermission]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
-    
         if user.role == Role.ADMIN:
             return Group.objects.all()
         elif user.role == Role.TEACHER:
-            # Ўқитувчига тегишли курслардаги гуруҳларни олиш
             return Group.objects.filter(course__teacher=user)
-        else:
-            # Талабалар учун ўз гуруҳлари
+        else:  # student
             return Group.objects.filter(students=user)
 
     def perform_create(self, serializer):
         students = serializer.validated_data.get('students') or []
-
-        invalid_users = [user.username for user in students if user.role in ['teacher', 'admin']]
+        invalid_users = [user.username for user in students if user.role in [Role.TEACHER, Role.ADMIN]]
         if invalid_users:
             raise ValidationError(
-                f"Следующие пользователи не являются студентами и не могут быть добавлены в группу: {', '.join(invalid_users)}"
+                f"Эти пользователи не студенты и не могут быть добавлены: {', '.join(invalid_users)}"
             )
-
         serializer.save()
 
     def perform_update(self, serializer):
         students = serializer.validated_data.get('students') or []
-
-        invalid_users = [user.username for user in students if user.role in ['teacher', 'admin']]
+        invalid_users = [user.username for user in students if user.role in [Role.TEACHER, Role.ADMIN]]
         if invalid_users:
             raise ValidationError(
-                f"Следующие пользователи не являются студентами и не могут быть добавлены в группу: {', '.join(invalid_users)}"
+                f"Эти пользователи не студенты и не могут быть добавлены: {', '.join(invalid_users)}"
             )
-
         serializer.save()
 
-from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import PermissionDenied
-from .models import Course
-from .serializers import CourseSerializer
-
+# -----------------------
+# Курсы
+# -----------------------
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
-    permission_classes = [IsAuthenticated]  # Базовая проверка: пользователь должен быть аутентифицирован
-
-    def get_permissions(self):
-        user = self.request.user
-
-        # Если это безопасный метод (только просмотр) — разрешаем всем авторизованным
-        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
-            return [IsAuthenticated()]
-
-        # Если пользователь не администратор — запрещаем создание, изменение, удаление
-        if getattr(user, 'role', None) != 'admin':
-            raise PermissionDenied("Только администратор может создавать, изменять или удалять курсы.")
-
-        return [IsAuthenticated()]
-
-from rest_framework import viewsets, permissions
-from .models import Attendance
-from .serializers import AttendanceSerializer
-
-class AttendanceViewSet(viewsets.ModelViewSet):
-    serializer_class = AttendanceSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         user = self.request.user
-        qs = Attendance.objects.all()
+        if user.role == Role.ADMIN:
+            return Course.objects.all()
+        elif user.role == Role.TEACHER:
+            return Course.objects.filter(teacher=user)
+        elif user.role == Role.STUDENT:
+            return Course.objects.filter(groups__students=user).distinct()
+        return Course.objects.none()
 
-        if user.is_superuser or user.role == "admin":
-            return qs 
+    def perform_create(self, serializer):
+        if self.request.user.role != Role.ADMIN:
+            raise PermissionDenied("Только администратор может создавать курсы.")
+        serializer.save()
 
-        if user.role == "teacher":
-            return qs.filter(lesson__teacher=user)
+    def perform_update(self, serializer):
+        if self.request.user.role != Role.ADMIN:
+            raise PermissionDenied("Только администратор может изменять курсы.")
+        serializer.save()
 
-        if user.role == "student":
-            groups = user.groups.all()
-            return qs.filter(lesson__group__in=groups)
+    def perform_destroy(self, instance):
+        if self.request.user.role != Role.ADMIN:
+            raise PermissionDenied("Только администратор может удалять курсы.")
+        instance.delete()
 
-        return qs.none()
-
-
-# views.py
-from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
-from .models import Lesson
-from .serializers import LessonSerializer
-
+# -----------------------
+# Уроки
+# -----------------------
 class LessonViewSet(viewsets.ModelViewSet):
     queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
@@ -183,24 +140,81 @@ class LessonViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-
-        if user.role == 'teacher':
+        if user.role == Role.ADMIN or user.is_superuser or user.is_staff:
+            return Lesson.objects.all()
+        elif user.role == Role.TEACHER:
             return Lesson.objects.filter(teacher=user)
-
-        elif user.role == 'student':
+        elif user.role == Role.STUDENT:
             return Lesson.objects.filter(group__students=user)
+        return Lesson.objects.none()
 
-        return Lesson.objects.all()
-
-    # def perform_create(self, serializer):
     def perform_create(self, serializer):
         user = self.request.user
-
-        if user.role not in ['teacher', 'admin']:
-            raise PermissionDenied("Сизда дарс яратиш ҳуқуқи йўқ!")
-
-
-        if user.role == 'teacher':
+        if user.role not in [Role.TEACHER, Role.ADMIN]:
+            raise PermissionDenied("У вас нет прав для создания урока.")
+        if user.role == Role.TEACHER:
             serializer.save(teacher=user)
         else:
             serializer.save()
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        if user.role == Role.ADMIN:
+            serializer.save()
+        elif user.role == Role.TEACHER:
+            if serializer.instance.teacher != user:
+                raise PermissionDenied("Вы можете редактировать только свои уроки.")
+            serializer.save()
+        else:
+            raise PermissionDenied("У вас нет прав для редактирования урока.")
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if user.role == Role.ADMIN:
+            instance.delete()
+        elif user.role == Role.TEACHER:
+            if instance.teacher != user:
+                raise PermissionDenied("Вы можете удалять только свои уроки.")
+            instance.delete()
+        else:
+            raise PermissionDenied("У вас нет прав для удаления урока.")
+
+# -----------------------
+# Посещаемость
+# -----------------------
+class AttendanceViewSet(viewsets.ModelViewSet):
+    serializer_class = AttendanceSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser or user.role == Role.ADMIN:
+            return Attendance.objects.all()
+        elif user.role == Role.TEACHER:
+            return Attendance.objects.filter(lesson__teacher=user)
+        elif user.role == Role.STUDENT:
+            return Attendance.objects.filter(student=user)
+        return Attendance.objects.none()
+
+    def perform_create(self, serializer):
+        if self.request.user.role not in [Role.ADMIN, Role.TEACHER]:
+            raise PermissionDenied("У вас нет прав для добавления посещаемости.")
+        serializer.save()
+
+    def perform_update(self, serializer):
+        if self.request.user.role == Role.ADMIN:
+            serializer.save()
+        elif self.request.user.role == Role.TEACHER:
+            if serializer.instance.lesson.teacher != self.request.user:
+                raise PermissionDenied("Вы можете редактировать только посещаемость своих уроков.")
+            serializer.save()
+        else:
+            raise PermissionDenied("У вас нет прав для редактирования посещаемости.")
+
+    def perform_destroy(self, instance):
+        if self.request.user.role == Role.ADMIN:
+            instance.delete()
+        elif self.request.user.role == Role.TEACHER:
+            if instance.lesson.teacher != self.request.user:
+                raise PermissionDenied("Вы можете удалять только посещаемость своих уроков.")
+            instance.delete()
