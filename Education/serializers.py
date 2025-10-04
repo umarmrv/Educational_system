@@ -46,7 +46,7 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 class GroupSerializer(serializers.ModelSerializer):
-    # Агар сиз курс ва талабаларни детал билан кўрсатмоқчи бўлсангиз, шундай қўшинг:
+  
     course = serializers.PrimaryKeyRelatedField(queryset=Course.objects.all(), required=False, allow_null=True)
     students = serializers.PrimaryKeyRelatedField(queryset=User.objects.all(), many=True, required=False)
 
