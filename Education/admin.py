@@ -72,7 +72,7 @@ class AttendanceAdminForm(forms.ModelForm):
 @admin.register(Group)
 class GroupAdmin(admin.ModelAdmin):
     form = GroupAdminForm
-    filter_horizontal = ("students",)
+    filter_horizontal = ("students",)   
     list_display = ("id", "display_name", "students_count")
     search_fields = ("id", "title", "name", "description")
     readonly_fields = ['show_lessons']

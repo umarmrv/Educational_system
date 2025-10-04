@@ -69,6 +69,7 @@ class UserViewSet(viewsets.ModelViewSet):
         if not (u.is_superuser or u.is_staff or getattr(u, "role", None) == "admin"):
             raise PermissionDenied("Только администратор может удалять пользователей.")
         instance.delete()
+
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
@@ -80,10 +81,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.exceptions import ValidationError
 from .models import Group
 from .serializers import GroupSerializer
+from .permissions import GroupPermission
 
 class GroupViewSet(viewsets.ModelViewSet):
     serializer_class = GroupSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [GroupPermission]
 
     def get_queryset(self):
         user = self.request.user
@@ -144,7 +146,8 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             return qs.filter(lesson__teacher=user)
 
         if user.role == "student":
-            return qs.filter(student=user)
+            groups = user.groups.all()
+            return qs.filter(lesson__group__in=groups)
 
         return qs.none()
 
