@@ -1,13 +1,10 @@
+from django.shortcuts import render
+from Education.models import Group, Course, Lesson, Attendance, Role, User
 from django.contrib.auth import get_user_model
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated, BasePermission
 from rest_framework.exceptions import PermissionDenied, ValidationError
-
-from Education.models import Group, Course, Lesson, Attendance, Role
-from .serializers import (
-    UserSerializer, CourseSerializer,
-    GroupSerializer, LessonSerializer, AttendanceSerializer
-)
+from .serializers import UserSerializer, CourseSerializer, GroupSerializer, LessonSerializer, AttendanceSerializer
 
 User = get_user_model()
 
@@ -32,13 +29,21 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role == Role.ADMIN or user.is_superuser or user.is_staff:
+
+        if user.role == Role.ADMIN:
             return User.objects.all()
+
         elif user.role == Role.TEACHER:
-            return User.objects.filter(role=Role.STUDENT) | User.objects.filter(pk=user.pk)
+            return User.objects.filter(
+                role=Role.STUDENT,
+                student_groups__course__teacher=user
+            ).distinct()
+
         elif user.role == Role.STUDENT:
-            groups = user.student_groups.all()
-            return User.objects.filter(student_groups__in=groups, role=Role.STUDENT).distinct() | User.objects.filter(pk=user.pk)
+            return User.objects.filter(
+                student_groups__in=user.student_groups.all()
+            ).distinct()
+
         return User.objects.none()
 
     def get_permissions(self):
@@ -67,7 +72,7 @@ class GroupViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role == Role.ADMIN or user.is_superuser or user.is_staff:
+        if user.role == Role.ADMIN:
             return Group.objects.all()
         elif user.role == Role.TEACHER:
             return Group.objects.filter(course__teacher=user)
@@ -76,7 +81,7 @@ class GroupViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         students = serializer.validated_data.get('students') or []
-        invalid_users = [u.username for u in students if u.role in [Role.TEACHER, Role.ADMIN]]
+        invalid_users = [user.username for user in students if user.role in [Role.TEACHER, Role.ADMIN]]
         if invalid_users:
             raise ValidationError(
                 f"Эти пользователи не студенты и не могут быть добавлены: {', '.join(invalid_users)}"
@@ -85,7 +90,7 @@ class GroupViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         students = serializer.validated_data.get('students') or []
-        invalid_users = [u.username for u in students if u.role in [Role.TEACHER, Role.ADMIN]]
+        invalid_users = [user.username for user in students if user.role in [Role.TEACHER, Role.ADMIN]]
         if invalid_users:
             raise ValidationError(
                 f"Эти пользователи не студенты и не могут быть добавлены: {', '.join(invalid_users)}"
@@ -102,7 +107,7 @@ class CourseViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role == Role.ADMIN or user.is_superuser or user.is_staff:
+        if user.role == Role.ADMIN:
             return Course.objects.all()
         elif user.role == Role.TEACHER:
             return Course.objects.filter(teacher=user)
@@ -213,5 +218,3 @@ class AttendanceViewSet(viewsets.ModelViewSet):
             if instance.lesson.teacher != self.request.user:
                 raise PermissionDenied("Вы можете удалять только посещаемость своих уроков.")
             instance.delete()
-        else:
-            raise PermissionDenied("У вас нет прав для удаления посещаемости.")
