@@ -121,11 +121,29 @@ class GroupViewSet(viewsets.ModelViewSet):
 
         serializer.save()
 
+from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
+from .models import Course
+from .serializers import CourseSerializer
+
 class CourseViewSet(viewsets.ModelViewSet):
     queryset = Course.objects.all()
     serializer_class = CourseSerializer
-    permission_classes = [IsAuthenticated]  # ёки AllowAny, агар барчага очиқ бўлса
+    permission_classes = [IsAuthenticated]  # Базовая проверка: пользователь должен быть аутентифицирован
 
+    def get_permissions(self):
+        user = self.request.user
+
+        # Если это безопасный метод (только просмотр) — разрешаем всем авторизованным
+        if self.request.method in ['GET', 'HEAD', 'OPTIONS']:
+            return [IsAuthenticated()]
+
+        # Если пользователь не администратор — запрещаем создание, изменение, удаление
+        if getattr(user, 'role', None) != 'admin':
+            raise PermissionDenied("Только администратор может создавать, изменять или удалять курсы.")
+
+        return [IsAuthenticated()]
 
 from rest_framework import viewsets, permissions
 from .models import Attendance
