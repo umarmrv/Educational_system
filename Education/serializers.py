@@ -64,7 +64,10 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 
 class CourseSerializer(serializers.ModelSerializer):
-    teacher = serializers.PrimaryKeyRelatedField(queryset=User.objects.all())
+    teacher = serializers.SlugRelatedField(
+        slug_field='full_name',
+        queryset=User.objects.all()
+    )
 
     class Meta:
         model = Course
