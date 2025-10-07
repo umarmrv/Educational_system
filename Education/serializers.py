@@ -40,7 +40,7 @@ class UserSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 from rest_framework import serializers
-from Education.models import Group, Course# Course ва Group моделларини импорт қилинг
+from Education.models import Group, Course
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
