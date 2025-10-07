@@ -5,6 +5,7 @@ from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated, BasePermission
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from .serializers import UserSerializer, CourseSerializer, GroupSerializer, LessonSerializer, AttendanceSerializer
+from .permissions import GroupPermission
 
 User = get_user_model()
 
@@ -68,7 +69,7 @@ class UserViewSet(viewsets.ModelViewSet):
 # -----------------------
 class GroupViewSet(viewsets.ModelViewSet):
     serializer_class = GroupSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [GroupPermission]
 
     def get_queryset(self):
         user = self.request.user
