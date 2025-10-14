@@ -94,6 +94,8 @@ from rest_framework import serializers
 from .models import Attendance
 
 class AttendanceSerializer(serializers.ModelSerializer):
+    student = serializers.CharField(source='student.full_name', read_only=True)
+    lesson = serializers.CharField(source='lesson.topic', read_only=True) 
     class Meta:
         model = Attendance
         fields = [
