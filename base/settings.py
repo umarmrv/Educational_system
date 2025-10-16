@@ -153,7 +153,7 @@ JAZZMIN_SETTINGS = {
 
     "welcome_sign": "Добро пожаловать в Edora",
     "copyright": "Edora",
-    "search_model": ["Education.User", "Education.Group", "Education.Course"],
+    "search_model": ["Education.User"],
     "topmenu_links": [
         {"name": "Главная", "url": "/", "permissions": ["auth.view_user"]},
         {"model": "Education.User"},
@@ -166,6 +166,8 @@ JAZZMIN_SETTINGS = {
         "Education.User": "fas fa-user",
         "Education.Group": "fas fa-users",
         "Education.Course": "fas fa-book-open",
+        "Education.Attendance": "fas fa-user-check",
+        "Education.Lesson": "fas fa-book-reader",
     },
     "default_icon_parents": "fas fa-chevron-circle-right",
     "default_icon_children": "fas fa-angle-right",
