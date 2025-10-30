@@ -4,8 +4,9 @@ from django.core.exceptions import ValidationError
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.db import transaction
 from django.db.models import Q
+from django.utils.html import format_html
 
-from .models import User, Course, Group, Lesson, Attendance
+from .models import User, Course, Group, Lesson, Attendance, Payment
 from .forms import GroupAdminForm, LessonAdminForm, CourseAdminForm
 
 
@@ -15,7 +16,7 @@ from .forms import GroupAdminForm, LessonAdminForm, CourseAdminForm
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
     model = User
-    list_display = ("id", "username", "full_name", "email", "phone", "role", "is_staff", "is_active", "date_joined")
+    list_display = ("username", "full_name", "email", "phone", "role", "is_staff", "is_active", "date_joined")
     list_filter = ("role", "is_staff", "is_active", "date_joined")
 
     def get_queryset(self, request):
@@ -73,8 +74,8 @@ class AttendanceAdminForm(forms.ModelForm):
 class GroupAdmin(admin.ModelAdmin):
     form = GroupAdminForm
     filter_horizontal = ("students",)   
-    list_display = ("id", "display_name", "students_count")
-    search_fields = ("id", "title", "name", "description")
+    list_display = ("display_name", "students_count")
+    search_fields = ("title", "name", "description")
     readonly_fields = ['show_lessons']
 
     def get_queryset(self, request):
@@ -131,8 +132,8 @@ class GroupAdmin(admin.ModelAdmin):
 @admin.register(Course)
 class CourseAdmin(admin.ModelAdmin):
     form = CourseAdminForm
-    list_display = ("id", "display_title", "get_teacher_name")
-    search_fields = ("id", "title", "name", "description", "teacher__full_name")
+    list_display = ("display_title", "get_teacher_name")
+    search_fields = ("title", "name", "description", "teacher__full_name")
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
@@ -339,3 +340,34 @@ class AttendanceAdmin(admin.ModelAdmin):
                 kwargs["queryset"] = User.objects.filter(role="student")
 
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+    
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    list_display = ('colored_student', 'group', 'course', 'cycle_index', 'amount_due', 'created_at', 'is_paid')
+    list_editable = ('is_paid',)
+    list_filter = ('group', 'course', 'is_paid')
+    search_fields = ('student__full_name', 'group__name', 'course__title')
+    list_per_page = 20
+
+    # 🟢 Кастомное отображение имени с цветом строки
+    def colored_student(self, obj):
+        """Возвращает имя студента с зелёным фоном, если оплачено."""
+        if obj.is_paid:
+            return format_html(
+                '<div style="background-color:#d4edda; padding:5px; border-radius:5px;">{}</div>',
+                obj.student.full_name
+            )
+        else:
+            return format_html(
+                '<div style="background-color:#ffbabb; padding:5px; border-radius:5px;">{}</div>',
+                obj.student.full_name
+            )
+
+    colored_student.short_description = 'Студент'
+
+    # 🧩 Чтобы окрасить всю строку при is_paid=True
+    class Media:
+        css = {
+            'all': ('admin/css/payment_admin.css',)
+        }
