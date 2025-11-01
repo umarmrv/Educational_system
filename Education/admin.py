@@ -341,6 +341,10 @@ class AttendanceAdmin(admin.ModelAdmin):
 
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
     
+from django.contrib import admin
+from django.utils.html import format_html
+from .models import Payment
+
 
 @admin.register(Payment)
 class PaymentAdmin(admin.ModelAdmin):
@@ -348,26 +352,42 @@ class PaymentAdmin(admin.ModelAdmin):
     list_editable = ('is_paid',)
     list_filter = ('group', 'course', 'is_paid')
     search_fields = ('student__full_name', 'group__name', 'course__title')
+    search_help_text = "Поиск по имени студента, названию группы или курса"
     list_per_page = 20
+    ordering = ('group__name', 'student__full_name')
 
-    # 🟢 Кастомное отображение имени с цветом строки
+    # 🔒 Показывать студенту только его собственные платежи
+    def get_queryset(self, request):
+        queryset = super().get_queryset(request)
+        if request.user.role == 'student':  # если пользователь — студент
+            return queryset.filter(student=request.user)
+        return queryset  # админ и учителя видят всё
+
+    # 🚫 Запрещаем студентам изменять записи
+    def has_change_permission(self, request, obj=None):
+        if request.user.role == 'student':
+            return False
+        return super().has_change_permission(request, obj)
+
+    # 🚫 Запрещаем студентам добавлять новые платежи
+    def has_add_permission(self, request):
+        if request.user.role == 'student':
+            return False
+        return super().has_add_permission(request)
+
+    # 🟢 Цветное отображение имени студента
     def colored_student(self, obj):
-        """Возвращает имя студента с зелёным фоном, если оплачено."""
         if obj.is_paid:
             return format_html(
                 '<div style="background-color:#d4edda; padding:5px; border-radius:5px;">{}</div>',
                 obj.student.full_name
             )
-        else:
-            return format_html(
-                '<div style="background-color:#ffbabb; padding:5px; border-radius:5px;">{}</div>',
-                obj.student.full_name
-            )
+        return format_html(
+            '<div style="background-color:#ffbabb; padding:5px; border-radius:5px;">{}</div>',
+            obj.student.full_name
+        )
 
     colored_student.short_description = 'Студент'
 
-    # 🧩 Чтобы окрасить всю строку при is_paid=True
     class Media:
-        css = {
-            'all': ('admin/css/payment_admin.css',)
-        }
+        css = {'all': ('admin/css/payment_admin.css',)}
