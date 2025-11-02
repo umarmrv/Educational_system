@@ -1,0 +1,14 @@
+/* Контейнер логотипа на login-странице */
+.login-logo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 16px; /* расстояние до формы */
+    margin-top: 24px;    /* расстояние сверху страницы */
+}
+
+/* Само изображение логотипа */
+.login-logo img {
+    max-width: 120px;   /* делаем логотип меньше */
+    height: auto;
+}
