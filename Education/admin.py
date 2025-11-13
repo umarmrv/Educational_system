@@ -73,24 +73,21 @@ class AttendanceAdminForm(forms.ModelForm):
 @admin.register(Group)
 class GroupAdmin(admin.ModelAdmin):
     form = GroupAdminForm
-    filter_horizontal = ("students",)   
+    filter_horizontal = ("students",)
     list_display = ("display_name", "students_count")
-    search_fields = ("title", "name", "description")
+    search_fields = ("name", "course__title")  # <-- ислоҳ шуд
     readonly_fields = ['show_lessons']
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-
         if request.user.role == "teacher":
             return qs.filter(course__teacher=request.user)
-        
         if request.user.role == "student":
             return qs.filter(students=request.user)
-
         return qs
 
     def display_name(self, obj):
-        return getattr(obj, "title", None) or getattr(obj, "name", None) or str(obj)
+        return getattr(obj, "name", None) or str(obj)
     display_name.short_description = "Группа"
 
     def students_count(self, obj):
@@ -108,13 +105,8 @@ class GroupAdmin(admin.ModelAdmin):
         output = ""
         for lesson in lessons:
             attendances = lesson.attendances.select_related('student')
-
-            present_students = [
-                a.student.full_name for a in attendances if a.status == 'present'
-            ]
-            absent_students = [
-                a.student.full_name for a in attendances if a.status == 'absent'
-            ]
+            present_students = [a.student.full_name for a in attendances if a.status == 'present']
+            absent_students = [a.student.full_name for a in attendances if a.status == 'absent']
 
             output += f"📅 Дата: {lesson.date.strftime('%d.%m.%Y')}\n"
             output += f"📘 Тема: {lesson.topic}\n"
@@ -124,6 +116,7 @@ class GroupAdmin(admin.ModelAdmin):
 
         return output
     show_lessons.short_description = "Уроки и посещаемость"
+
 
 
 # =================
