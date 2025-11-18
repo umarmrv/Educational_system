@@ -13,8 +13,16 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-secret-key")
 
 DEBUG = os.environ.get("DJANGO_DEBUG", "True") == "True"
 
-ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "*").split(",")
+# ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "*").split(",")
 
+ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost",
+    "http://localhost:8080",
+    "http://0.0.0.0:8000",
+    # сюда потом добавишь боевой домен:
+    # "https://your-domain.com",
+]
 
 
 # Application definition
@@ -145,6 +153,12 @@ STATICFILES_DIRS = [
 ]
 
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+
+
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 JAZZMIN_SETTINGS = {
     "site_title": "Edora",
