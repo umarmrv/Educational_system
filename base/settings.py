@@ -20,9 +20,10 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost",
     "http://localhost:8080",
     "http://0.0.0.0:8000",
-    # сюда потом добавишь боевой домен:
-    # "https://your-domain.com",
-]
+    
+    # Боевое окружение — IP сервера
+    "http://147.45.251.230",
+    "http://147.45.251.230:8080"]
 
 
 # Application definition
